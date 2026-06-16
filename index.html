@@ -14,7 +14,7 @@
 .header .subtitle { font-size: 12px; color: #3a5a7a; margin-top: 5px; }
 .header .updated { font-size: 11px; color: #2a4060; margin-top: 3px; min-height: 16px; }
 
-#loading { text-align: center; padding: 64px 20px; display: none; }
+#loading { text-align: center; padding: 64px 20px; }
 .ball-spin { font-size: 40px; display: inline-block; animation: spin 1s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .loading-text { color: #4a7fc1; font-weight: 600; margin-top: 14px; }
@@ -94,6 +94,9 @@
 <div class="footer">Inchiavabili 👑 · Andrea, Marco, Marzio, Matte…</div>
 
 <script>
+// ⬇️ PASTE YOUR ANTHROPIC API KEY HERE
+const API_KEY = "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";
+
 const PLAYERS = {
   "Paolo":        { emoji:"🇮🇹", teams:["Spain","Brazil","Japan","USA","Egypt","Algeria","Bosnia","Uzbekistan"] },
   "Cala":         { emoji:"🎯",  teams:["France","Morocco","Turkey","Panama","Iran","Ghana","Cabo Verde","New Zealand"] },
@@ -145,8 +148,8 @@ function calcScores(matches) {
 
   matches.forEach(m => {
     const h = norm(m.home), a = norm(m.away);
-    if (rec[h]) { rec[h].played++; if (m.hg>m.ag){rec[h].w++;pts[h]+=3;} else if(m.hg===m.ag){rec[h].d++;} else{rec[h].l++;} }
-    if (rec[a]) { rec[a].played++; if (m.ag>m.hg){rec[a].w++;pts[a]+=3;} else if(m.ag===m.hg){rec[a].d++;} else{rec[a].l++;} }
+    if (rec[h]) { rec[h].played++; if(m.hg>m.ag){rec[h].w++;pts[h]+=3;}else if(m.hg===m.ag){rec[h].d++;}else{rec[h].l++;} }
+    if (rec[a]) { rec[a].played++; if(m.ag>m.hg){rec[a].w++;pts[a]+=3;}else if(m.ag===m.hg){rec[a].d++;}else{rec[a].l++;} }
   });
 
   return Object.entries(PLAYERS).map(([name,{emoji,teams}]) => {
@@ -167,7 +170,6 @@ function renderLeaderboard() {
     const barW   = maxPts > 0 ? Math.round((s.total / maxPts) * 100) : 0;
     const isOpen = expandedPlayer === s.name;
 
-    // Team grid
     let teamsHTML = "";
     if (isOpen) {
       teamsHTML = '<div class="team-grid">';
@@ -220,7 +222,7 @@ async function fetchLive() {
         "Content-Type": "application/json",
         "anthropic-version": "2023-06-01",
         "anthropic-dangerous-direct-browser-access": "true",
-        "x-api-key": window.ANTHROPIC_API_KEY || "",
+        "x-api-key": API_KEY,
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
@@ -249,43 +251,12 @@ async function fetchLive() {
 
   } catch(e) {
     document.getElementById("loading").style.display = "none";
-    document.getElementById("error-msg").textContent = e.message || "Something went wrong. Check your API key.";
+    document.getElementById("error-msg").textContent = e.message || "Something went wrong.";
     document.getElementById("error-box").style.display = "block";
   }
 }
 
-// Read API key from URL hash: open the page as index.html#sk-ant-...
-// This keeps the key out of server logs
-(function() {
-  const key = window.location.hash.replace("#","").trim();
-  if (key.startsWith("sk-ant-")) {
-    window.ANTHROPIC_API_KEY = key;
-    history.replaceState(null,"",window.location.pathname); // clear from URL bar after reading
-    fetchLive();
-  } else {
-    // Show a simple key prompt
-    document.getElementById("loading").style.display = "none";
-    const div = document.createElement("div");
-    div.style.cssText = "text-align:center;padding:48px 20px";
-    div.innerHTML = `
-      <div style="font-size:32px;margin-bottom:16px">🔑</div>
-      <div style="font-weight:700;font-size:16px;margin-bottom:8px;color:#c8d4e0">Enter your Anthropic API key</div>
-      <div style="font-size:12px;color:#3a5a7a;margin-bottom:20px">Get one free at <a href="https://console.anthropic.com" target="_blank" style="color:#4a80b8">console.anthropic.com</a></div>
-      <input id="key-input" type="password" placeholder="sk-ant-api03-..." style="width:100%;max-width:360px;background:#0a1020;border:1px solid #1e3050;border-radius:10px;padding:12px 16px;color:#e0e8f4;font-size:14px;font-family:monospace;outline:none;display:block;margin:0 auto 16px"/>
-      <button onclick="submitKey()" style="background:linear-gradient(135deg,#1a3a6a,#2a5a9a);border:1px solid #2a5a9a;border-radius:12px;color:#a0c8f0;padding:12px 28px;font-size:15px;font-weight:700;cursor:pointer">▶ Load Standings</button>
-      <div style="font-size:11px;color:#1e3050;margin-top:12px">Key stays in your browser only</div>`;
-    document.getElementById("leaderboard").before(div);
-    document.getElementById("key-input")?.addEventListener("keydown", e => { if(e.key==="Enter") submitKey(); });
-  }
-})();
-
-function submitKey() {
-  const key = document.getElementById("key-input")?.value.trim();
-  if (!key || !key.startsWith("sk-ant-")) { alert("Please enter a valid Anthropic API key (starts with sk-ant-)"); return; }
-  window.ANTHROPIC_API_KEY = key;
-  document.getElementById("key-input")?.closest("div").remove();
-  fetchLive();
-}
+fetchLive();
 </script>
 
 </body>
