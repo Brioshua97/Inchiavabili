@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Inchiavabili League ⚽</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #080c17; font-family: 'Inter', system-ui, sans-serif; color: #e0e8f4; min-height: 100vh; }
+
+.header { background: linear-gradient(160deg, #0f1a30 0%, #060d1c 100%); border-bottom: 1px solid #1a2840; padding: 26px 20px 18px; text-align: center; }
+.header h1 { font-size: 26px; font-weight: 900; letter-spacing: -0.5px; background: linear-gradient(90deg, #f5c842, #e07820); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 0; }
+.header .subtitle { font-size: 12px; color: #3a5a7a; margin-top: 5px; }
+.header .updated { font-size: 11px; color: #2a4060; margin-top: 3px; min-height: 16px; }
+
+#loading { text-align: center; padding: 64px 20px; display: none; }
+.ball-spin { font-size: 40px; display: inline-block; animation: spin 1s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.loading-text { color: #4a7fc1; font-weight: 600; margin-top: 14px; }
+.loading-sub { color: #2a4060; font-size: 12px; margin-top: 6px; }
+
+#error-box { text-align: center; padding: 48px 20px; display: none; }
+#error-msg { color: #e05050; font-weight: 600; margin-bottom: 16px; font-size: 14px; }
+
+#leaderboard { padding: 18px 16px 8px; }
+
+.player-card { border-radius: 14px; padding: 16px 18px; margin-bottom: 10px; cursor: pointer; transition: all 0.2s; border: 1px solid #141e30; background: #0c1220; }
+.player-card.rank1 { background: #0f1a08; border-color: #2a4a10; }
+.player-card.open { background: linear-gradient(135deg, #0f2040, #0a1830); border-color: #2a5090; }
+
+.player-row { display: flex; align-items: center; gap: 12px; }
+.rank-badge { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
+.name-section { flex: 1; min-width: 0; }
+.player-name { font-weight: 700; font-size: 16px; margin-bottom: 6px; display: flex; align-items: baseline; gap: 8px; }
+.player-wins { font-size: 11px; color: #3a5a7a; }
+.bar-track { height: 5px; background: #0f1a2a; border-radius: 3px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
+.pts-col { text-align: right; flex-shrink: 0; }
+.pts-num { font-size: 30px; font-weight: 900; line-height: 1; }
+.pts-label { font-size: 10px; color: #2a4060; margin-top: 2px; }
+
+.team-grid { margin-top: 14px; padding-top: 14px; border-top: 1px solid #0f2040; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 8px; }
+.team-cell { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; background: #090e18; border: 1px solid #0f1e30; }
+.team-cell.won { background: #091a09; border-color: #1e4a1e; }
+.team-cell.played { background: #14140a; border-color: #2a2a10; }
+.team-flag { font-size: 16px; }
+.team-info { flex: 1; min-width: 0; }
+.team-name { font-size: 12px; font-weight: 600; color: #3a5878; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.team-name.won { color: #6aca6a; }
+.team-name.played { color: #9a9040; }
+.team-record { font-size: 10px; color: #2a4060; }
+.team-pts { font-weight: 800; font-size: 15px; color: #1a3050; }
+.team-pts.won { color: #6aca6a; }
+.team-pts.played { color: #707030; }
+
+#refresh-area { padding: 10px 16px 28px; text-align: center; display: none; }
+.btn-refresh { background: #0f1e36; border: 1px solid #1e3a60; color: #4a80b8; padding: 12px 28px; border-radius: 12px; cursor: pointer; font-size: 14px; font-weight: 600; }
+.btn-refresh:hover { background: #132440; color: #6aaad8; }
+.refresh-note { font-size: 11px; color: #1e3050; margin-top: 8px; }
+
+.footer { padding: 14px 16px 24px; text-align: center; border-top: 1px solid #0f1820; font-size: 11px; color: #1e3050; }
+</style>
+
+</head>
+<body>
+
+<div class="header">
+  <div style="font-size:22px;margin-bottom:4px">⚽</div>
+  <h1>Inchiavabili League</h1>
+  <div class="subtitle">FIFA World Cup 2026 · Win = 3pts · Draw/Loss = 0pts</div>
+  <div class="updated" id="updated-text"></div>
+</div>
+
+<div id="loading">
+  <div class="ball-spin">⚽</div>
+  <div class="loading-text">Fetching live results…</div>
+  <div class="loading-sub">Searching the web for latest scores</div>
+</div>
+
+<div id="error-box">
+  <div style="font-size:32px;margin-bottom:12px">❌</div>
+  <div id="error-msg"></div>
+  <button class="btn-refresh" onclick="fetchLive()">Try Again</button>
+</div>
+
+<div id="leaderboard"></div>
+
+<div id="refresh-area">
+  <button class="btn-refresh" onclick="fetchLive()">🔄 Refresh Results</button>
+  <div class="refresh-note">Searches the web for the latest scores</div>
+</div>
+
+<div class="footer">Inchiavabili 👑 · Andrea, Marco, Marzio, Matte…</div>
+
+<script>
+const PLAYERS = {
+  "Paolo":        { emoji:"🇮🇹", teams:["Spain","Brazil","Japan","USA","Egypt","Algeria","Bosnia","Uzbekistan"] },
+  "Cala":         { emoji:"🎯",  teams:["France","Morocco","Turkey","Panama","Iran","Ghana","Cabo Verde","New Zealand"] },
+  "Cuervo":       { emoji:"🪄",  teams:["Portugal","Belgium","Norway","Canada","Cote d'Ivoire","Czech Republic","Saudi Arabia","Jordan"] },
+  "Jo":           { emoji:"⚡",  teams:["England","Netherlands","Switzerland","Austria","Mexico","Scotland","Tunisia","Haiti"] },
+  "Il Padella":   { emoji:"🍳",  teams:["Argentina","Uruguay","Ecuador","South Korea","Sweden","Australia","Qatar","South Africa"] },
+  "Pierino":      { emoji:"🔵",  teams:["Germany","Croatia","Colombia","DR Congo","Senegal","Paraguay","Curacao","Iraq"] },
+};
+
+const FLAGS = {
+  "Spain":"🇪🇸","Brazil":"🇧🇷","Japan":"🇯🇵","USA":"🇺🇸","Egypt":"🇪🇬","Algeria":"🇩🇿","Bosnia":"🇧🇦","Uzbekistan":"🇺🇿",
+  "France":"🇫🇷","Morocco":"🇲🇦","Turkey":"🇹🇷","Panama":"🇵🇦","Iran":"🇮🇷","Ghana":"🇬🇭","Cabo Verde":"🇨🇻","New Zealand":"🇳🇿",
+  "Portugal":"🇵🇹","Belgium":"🇧🇪","Norway":"🇳🇴","Canada":"🇨🇦","Cote d'Ivoire":"🇨🇮","Czech Republic":"🇨🇿","Saudi Arabia":"🇸🇦","Jordan":"🇯🇴",
+  "England":"🏴󠁧󠁢󠁥󠁮󠁧󠁿","Netherlands":"🇳🇱","Switzerland":"🇨🇭","Austria":"🇦🇹","Mexico":"🇲🇽","Scotland":"🏴󠁧󠁢󠁳󠁣󠁴󠁿","Tunisia":"🇹🇳","Haiti":"🇭🇹",
+  "Argentina":"🇦🇷","Uruguay":"🇺🇾","Ecuador":"🇪🇨","South Korea":"🇰🇷","Sweden":"🇸🇪","Australia":"🇦🇺","Qatar":"🇶🇦","South Africa":"🇿🇦",
+  "Germany":"🇩🇪","Croatia":"🇭🇷","Colombia":"🇨🇴","DR Congo":"🇨🇩","Senegal":"🇸🇳","Paraguay":"🇵🇾","Curacao":"🇨🇼","Iraq":"🇮🇶",
+};
+
+const MEDALS    = ["🥇","🥈","🥉"];
+const RANK_BG   = ["","#b8860b","#5a6a7a","#7a4a1a"];
+const BAR_GRAD  = ["","linear-gradient(90deg,#c89010,#f0c040)","linear-gradient(90deg,#506070,#8090a8)","linear-gradient(90deg,#7a3a10,#c05020)"];
+const PTS_COLOR = ["","#f0c040","#90a8be","#c06830"];
+
+const ALIASES = {
+  "Ivory Coast":"Cote d'Ivoire","Côte d'Ivoire":"Cote d'Ivoire",
+  "Bosnia and Herzegovina":"Bosnia","Bosnia & Herzegovina":"Bosnia",
+  "Democratic Republic of Congo":"DR Congo","Democratic Republic of the Congo":"DR Congo","Congo DR":"DR Congo",
+  "Czechia":"Czech Republic","Türkiye":"Turkey","Turkiye":"Turkey",
+  "Cape Verde":"Cabo Verde","Curaçao":"Curacao","Korea Republic":"South Korea",
+};
+
+const SYSTEM_PROMPT = `You are a World Cup 2026 results assistant. Search the web for the latest FIFA World Cup 2026 group stage results and return them as structured JSON.
+Return ONLY raw JSON, no markdown, no explanation:
+{"lastUpdated":"human readable date/time","matches":[{"home":"TeamName","away":"TeamName","hg":0,"ag":0}]}
+Rules:
+- Only completed matches (hg/ag are integers)
+- Exact team spellings: Spain, Brazil, Japan, USA, Egypt, Algeria, Bosnia, Uzbekistan, France, Morocco, Turkey, Panama, Iran, Ghana, Cabo Verde, New Zealand, Portugal, Belgium, Norway, Canada, Cote d'Ivoire, Czech Republic, Saudi Arabia, Jordan, England, Netherlands, Switzerland, Austria, Mexico, Scotland, Tunisia, Haiti, Argentina, Uruguay, Ecuador, South Korea, Sweden, Australia, Qatar, South Africa, Germany, Croatia, Colombia, DR Congo, Senegal, Paraguay, Curacao, Iraq
+- Include ALL completed group stage matches so far`;
+
+let expandedPlayer = null;
+let currentScores  = [];
+
+function norm(n) { return ALIASES[n] || n; }
+
+function calcScores(matches) {
+  const allTeams = Object.values(PLAYERS).flatMap(p => p.teams);
+  const pts = {}, rec = {};
+  allTeams.forEach(t => { pts[t] = 0; rec[t] = {w:0,d:0,l:0,played:0}; });
+
+  matches.forEach(m => {
+    const h = norm(m.home), a = norm(m.away);
+    if (rec[h]) { rec[h].played++; if (m.hg>m.ag){rec[h].w++;pts[h]+=3;} else if(m.hg===m.ag){rec[h].d++;} else{rec[h].l++;} }
+    if (rec[a]) { rec[a].played++; if (m.ag>m.hg){rec[a].w++;pts[a]+=3;} else if(m.ag===m.hg){rec[a].d++;} else{rec[a].l++;} }
+  });
+
+  return Object.entries(PLAYERS).map(([name,{emoji,teams}]) => {
+    const total = teams.reduce((s,t)=>s+(pts[t]||0),0);
+    const wins  = teams.reduce((s,t)=>s+(rec[t]?.w||0),0);
+    return { name, emoji, total, wins, teams: teams.map(t=>({team:t,pts:pts[t]||0,...rec[t]})) };
+  }).sort((a,b)=>b.total-a.total||b.wins-a.wins);
+}
+
+function renderLeaderboard() {
+  const board  = document.getElementById("leaderboard");
+  const maxPts = currentScores[0]?.total || 1;
+  board.innerHTML = "";
+
+  currentScores.forEach((s, i) => {
+    const rank   = i + 1;
+    const ri     = Math.min(rank, 3);
+    const barW   = maxPts > 0 ? Math.round((s.total / maxPts) * 100) : 0;
+    const isOpen = expandedPlayer === s.name;
+
+    // Team grid
+    let teamsHTML = "";
+    if (isOpen) {
+      teamsHTML = '<div class="team-grid">';
+      s.teams.forEach(t => {
+        const won = t.pts > 0, played = t.played > 0;
+        teamsHTML += `<div class="team-cell${won?" won":played?" played":""}">
+          <span class="team-flag">${FLAGS[t.team]||"🏳️"}</span>
+          <div class="team-info">
+            <div class="team-name${won?" won":played?" played":""}">${t.team}</div>
+            <div class="team-record">${played?`${t.w}W ${t.d}D ${t.l}L`:"not played yet"}</div>
+          </div>
+          <div class="team-pts${won?" won":played?" played":""}">${t.pts}</div>
+        </div>`;
+      });
+      teamsHTML += "</div>";
+    }
+
+    const card = document.createElement("div");
+    card.className = "player-card" + (rank===1?" rank1":"") + (isOpen?" open":"");
+    card.onclick = () => { expandedPlayer = (expandedPlayer===s.name)?null:s.name; renderLeaderboard(); };
+    card.innerHTML = `
+      <div class="player-row">
+        <div class="rank-badge" style="background:${RANK_BG[ri]||"#1e2a3a"};font-size:${rank<=3?"16":"13"}px">
+          ${rank<=3?MEDALS[rank-1]:rank}
+        </div>
+        <div class="name-section">
+          <div class="player-name">${s.emoji} ${s.name} <span class="player-wins">${s.wins}W</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width:${barW}%;background:${BAR_GRAD[ri]||"linear-gradient(90deg,#1e3a60,#2a5a9a)"}"></div></div>
+        </div>
+        <div class="pts-col">
+          <div class="pts-num" style="color:${PTS_COLOR[ri]||"#c0cee0"}">${s.total}</div>
+          <div class="pts-label">pts</div>
+        </div>
+      </div>
+      ${teamsHTML}`;
+    board.appendChild(card);
+  });
+}
+
+async function fetchLive() {
+  document.getElementById("leaderboard").innerHTML = "";
+  document.getElementById("refresh-area").style.display = "none";
+  document.getElementById("error-box").style.display = "none";
+  document.getElementById("loading").style.display = "block";
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+        "x-api-key": window.ANTHROPIC_API_KEY || "",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1500,
+        system: SYSTEM_PROMPT,
+        tools: [{ type: "web_search_20250305", name: "web_search" }],
+        messages: [{ role:"user", content:"Search for all completed 2026 FIFA World Cup group stage results and return as JSON." }],
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(()=>({}));
+      throw new Error(err.error?.message || "API error " + res.status);
+    }
+
+    const data   = await res.json();
+    const text   = (data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
+    const clean  = text.replace(/```json|```/g,"").trim();
+    const parsed = JSON.parse(clean);
+
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("updated-text").textContent = "Updated: " + (parsed.lastUpdated || new Date().toLocaleString());
+    currentScores = calcScores(parsed.matches || []);
+    renderLeaderboard();
+    document.getElementById("refresh-area").style.display = "block";
+
+  } catch(e) {
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("error-msg").textContent = e.message || "Something went wrong. Check your API key.";
+    document.getElementById("error-box").style.display = "block";
+  }
+}
+
+// Read API key from URL hash: open the page as index.html#sk-ant-...
+// This keeps the key out of server logs
+(function() {
+  const key = window.location.hash.replace("#","").trim();
+  if (key.startsWith("sk-ant-")) {
+    window.ANTHROPIC_API_KEY = key;
+    history.replaceState(null,"",window.location.pathname); // clear from URL bar after reading
+    fetchLive();
+  } else {
+    // Show a simple key prompt
+    document.getElementById("loading").style.display = "none";
+    const div = document.createElement("div");
+    div.style.cssText = "text-align:center;padding:48px 20px";
+    div.innerHTML = `
+      <div style="font-size:32px;margin-bottom:16px">🔑</div>
+      <div style="font-weight:700;font-size:16px;margin-bottom:8px;color:#c8d4e0">Enter your Anthropic API key</div>
+      <div style="font-size:12px;color:#3a5a7a;margin-bottom:20px">Get one free at <a href="https://console.anthropic.com" target="_blank" style="color:#4a80b8">console.anthropic.com</a></div>
+      <input id="key-input" type="password" placeholder="sk-ant-api03-..." style="width:100%;max-width:360px;background:#0a1020;border:1px solid #1e3050;border-radius:10px;padding:12px 16px;color:#e0e8f4;font-size:14px;font-family:monospace;outline:none;display:block;margin:0 auto 16px"/>
+      <button onclick="submitKey()" style="background:linear-gradient(135deg,#1a3a6a,#2a5a9a);border:1px solid #2a5a9a;border-radius:12px;color:#a0c8f0;padding:12px 28px;font-size:15px;font-weight:700;cursor:pointer">▶ Load Standings</button>
+      <div style="font-size:11px;color:#1e3050;margin-top:12px">Key stays in your browser only</div>`;
+    document.getElementById("leaderboard").before(div);
+    document.getElementById("key-input")?.addEventListener("keydown", e => { if(e.key==="Enter") submitKey(); });
+  }
+})();
+
+function submitKey() {
+  const key = document.getElementById("key-input")?.value.trim();
+  if (!key || !key.startsWith("sk-ant-")) { alert("Please enter a valid Anthropic API key (starts with sk-ant-)"); return; }
+  window.ANTHROPIC_API_KEY = key;
+  document.getElementById("key-input")?.closest("div").remove();
+  fetchLive();
+}
+</script>
+
+</body>
+</html>
